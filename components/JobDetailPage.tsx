@@ -1,11 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, DollarSign, Briefcase, Calendar, Users, Clock, Star, CheckCircle2, XCircle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { MapPin, DollarSign, Briefcase, Calendar, Users, Clock, Star, CheckCircle2, XCircle, X } from "lucide-react";
 import ApplicationModal from "./ApplicationModal";
 
-// Mock job data
-const mockJob = {
+interface CompanyInfo {
+  name: string;
+  logo?: string | null;
+  industry?: string;
+  size?: string;
+  founded?: string;
+  website?: string;
+  description?: string;
+}
+
+interface JobDetailProps {
+  job?: {
+    id: number | string;
+    title: string;
+    company: CompanyInfo | string;
+    description: string;
+    salary?: string;
+    location?: string;
+    experience?: string;
+    employmentType?: string;
+    posted?: string;
+    applicants?: number;
+    matchPercentage?: number;
+    // Two possible shapes for skills
+    requiredSkills?: string[];
+    niceToHaveSkills?: string[];
+    skills?: {
+      required?: string[];
+      niceToHave?: string[];
+      missing?: string[];
+    };
+    benefits?: string[];
+  };
+  userSkills?: string[];
+  onApplyNow?: () => void;
+  onClose?: () => void;
+}
+
+// Default mock job (used when no props are passed)
+const defaultJob: Required<JobDetailProps>["job"] = {
   id: 1,
   title: "Senior Frontend Developer",
   company: {
@@ -15,13 +53,14 @@ const mockJob = {
     size: "1000-5000 employees",
     founded: "2010",
     website: "techcorp.com",
-    description: "TechCorp is a leading technology company specializing in innovative software solutions. We're committed to creating cutting-edge products that transform how businesses operate."
+    description:
+      "TechCorp is a leading technology company specializing in innovative software solutions. We're committed to creating cutting-edge products that transform how businesses operate.",
   },
   matchPercentage: 92,
   skills: {
     required: ["React", "TypeScript", "Node.js", "GraphQL", "AWS"],
     niceToHave: ["Docker", "Kubernetes", "CI/CD", "Agile"],
-    missing: ["Docker", "Kubernetes"]
+    missing: ["Docker", "Kubernetes"],
   },
   salary: "$120k - $150k",
   location: "San Francisco, CA (Remote)",
@@ -29,7 +68,8 @@ const mockJob = {
   experience: "5+ years",
   posted: "2 days ago",
   applicants: 45,
-  description: `We are looking for an experienced Senior Frontend Developer to join our growing team at TechCorp. You will be responsible for building and maintaining our web applications using modern React and TypeScript.
+  description:
+    `We are looking for an experienced Senior Frontend Developer to join our growing team at TechCorp. You will be responsible for building and maintaining our web applications using modern React and TypeScript.
 
 **Key Responsibilities:**
 • Develop and maintain responsive web applications using React and TypeScript
@@ -58,25 +98,41 @@ const mockJob = {
     "Flexible work arrangements",
     "Professional development budget",
     "Gym membership reimbursement",
-    "Stock options"
-  ]
+    "Stock options",
+  ],
 };
 
-// Mock user skills for match calculation
-const userSkills = ["React", "TypeScript", "Node.js", "GraphQL", "AWS", "PostgreSQL", "Git"];
+const defaultUserSkills = [
+  "React",
+  "TypeScript",
+  "Node.js",
+  "GraphQL",
+  "AWS",
+  "PostgreSQL",
+  "Git",
+];
 
-export default function JobDetailPage() {
+export default function JobDetailPage({ job, userSkills, onApplyNow, onClose }: JobDetailProps) {
   const [showApplicationModal, setShowApplicationModal] = useState(false);
 
+  const jobData = useMemo(() => job ?? defaultJob, [job]);
+  const userSkillsData = userSkills ?? defaultUserSkills;
+
+  const requiredSkills = (jobData.skills?.required ?? jobData.requiredSkills ?? []).filter(Boolean);
+  const niceToHaveSkills = (jobData.skills?.niceToHave ?? jobData.niceToHaveSkills ?? []).filter(Boolean);
+
   const calculateSkillMatch = () => {
-    const requiredSkills = mockJob.skills.required;
-    const matchingSkills = requiredSkills.filter(skill => userSkills.includes(skill));
-    const missingSkills = requiredSkills.filter(skill => !userSkills.includes(skill));
-    
+    const matchingSkills = requiredSkills.filter((skill) => userSkillsData.includes(skill));
+    const missingSkills = requiredSkills.filter((skill) => !userSkillsData.includes(skill));
+
+    const percentage = requiredSkills.length
+      ? Math.round((matchingSkills.length / requiredSkills.length) * 100)
+      : jobData.matchPercentage ?? 0;
+
     return {
       matching: matchingSkills,
       missing: missingSkills,
-      percentage: Math.round((matchingSkills.length / requiredSkills.length) * 100)
+      percentage,
     };
   };
 
@@ -94,24 +150,33 @@ export default function JobDetailPage() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   <div>
                     <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-                      {mockJob.title}
+                      {jobData.title}
                     </h1>
                     <div className="flex items-center gap-4 text-sm text-zinc-600 dark:text-zinc-400">
                       <div className="flex items-center gap-1">
                         <Briefcase className="h-4 w-4" />
-                        <span>{mockJob.company.name}</span>
+                        <span>{typeof jobData.company === "string" ? jobData.company : jobData.company.name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
-                        <span>{mockJob.location}</span>
+                        <span>{jobData.location}</span>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                      {mockJob.matchPercentage}% Match
+                      {(jobData.matchPercentage ?? skillMatch.percentage)}% Match
                     </span>
                   </div>
+                  {onClose && (
+                    <button
+                      aria-label="Close"
+                      onClick={onClose}
+                      className="ml-4 p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -120,28 +185,28 @@ export default function JobDetailPage() {
                 <div className="text-center p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800">
                   <DollarSign className="h-5 w-5 text-indigo-600 mx-auto mb-1" />
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Salary</p>
-                  <p className="text-sm font-semibold">{mockJob.salary}</p>
+                  <p className="text-sm font-semibold">{jobData.salary}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800">
                   <Clock className="h-5 w-5 text-indigo-600 mx-auto mb-1" />
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Experience</p>
-                  <p className="text-sm font-semibold">{mockJob.experience}</p>
+                  <p className="text-sm font-semibold">{jobData.experience}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800">
                   <Calendar className="h-5 w-5 text-indigo-600 mx-auto mb-1" />
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Posted</p>
-                  <p className="text-sm font-semibold">{mockJob.posted}</p>
+                  <p className="text-sm font-semibold">{jobData.posted}</p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800">
                   <Users className="h-5 w-5 text-indigo-600 mx-auto mb-1" />
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">Applicants</p>
-                  <p className="text-sm font-semibold">{mockJob.applicants}</p>
+                  <p className="text-sm font-semibold">{jobData.applicants}</p>
                 </div>
               </div>
 
               {/* Apply Button */}
               <button
-                onClick={() => setShowApplicationModal(true)}
+                onClick={() => (onApplyNow ? onApplyNow() : setShowApplicationModal(true))}
                 className="w-full rounded-full bg-indigo-600 px-6 py-3 text-base font-semibold text-white transition-all duration-200 hover:bg-indigo-500 hover:shadow-lg active:scale-[0.98]"
               >
                 Apply Now
@@ -153,7 +218,7 @@ export default function JobDetailPage() {
               <h2 className="text-xl font-bold mb-4">Job Description</h2>
               <div className="prose prose-zinc dark:prose-invert max-w-none">
                 <div className="whitespace-pre-line text-zinc-700 dark:text-zinc-300">
-                  {mockJob.description}
+                  {jobData.description}
                 </div>
               </div>
             </div>
@@ -162,7 +227,7 @@ export default function JobDetailPage() {
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
               <h2 className="text-xl font-bold mb-4">Benefits</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {mockJob.benefits.map((benefit, index) => (
+                {(jobData.benefits ?? []).map((benefit, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <span className="text-sm text-zinc-700 dark:text-zinc-300">{benefit}</span>
@@ -225,33 +290,33 @@ export default function JobDetailPage() {
 
             {/* Company Profile Card */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="text-lg font-bold mb-4">About {mockJob.company.name}</h3>
+              <h3 className="text-lg font-bold mb-4">About {typeof jobData.company === "string" ? jobData.company : jobData.company.name}</h3>
               <div className="mb-4">
                 <div className="h-16 w-16 rounded-lg bg-gradient-to-br from-indigo-400 to-fuchsia-500 flex items-center justify-center text-white font-bold text-xl mb-3">
-                  {mockJob.company.name.charAt(0)}
+                  {(typeof jobData.company === "string" ? jobData.company : jobData.company.name).charAt(0)}
                 </div>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-                  {mockJob.company.description}
+                  {typeof jobData.company === "string" ? undefined : jobData.company.description}
                 </p>
               </div>
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-zinc-500 dark:text-zinc-400">Industry</span>
-                  <span className="font-medium">{mockJob.company.industry}</span>
+                  <span className="font-medium">{typeof jobData.company === "string" ? "" : jobData.company.industry}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500 dark:text-zinc-400">Company Size</span>
-                  <span className="font-medium">{mockJob.company.size}</span>
+                  <span className="font-medium">{typeof jobData.company === "string" ? "" : jobData.company.size}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500 dark:text-zinc-400">Founded</span>
-                  <span className="font-medium">{mockJob.company.founded}</span>
+                  <span className="font-medium">{typeof jobData.company === "string" ? "" : jobData.company.founded}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500 dark:text-zinc-400">Website</span>
-                  <a href={`https://${mockJob.company.website}`} className="font-medium text-indigo-600 hover:underline">
-                    {mockJob.company.website}
+                  <a href={`https://${typeof jobData.company === "string" ? "" : jobData.company.website}`} className="font-medium text-indigo-600 hover:underline">
+                    {typeof jobData.company === "string" ? "" : jobData.company.website}
                   </a>
                 </div>
               </div>
@@ -271,14 +336,19 @@ export default function JobDetailPage() {
         </div>
       </div>
 
-      {/* Application Modal */}
-      {showApplicationModal && (
+      {/* Application Modal (internal fallback when onApplyNow not provided) */}
+      {showApplicationModal && !onApplyNow && (
         <ApplicationModal
-          job={mockJob}
+          job={{
+            id: jobData.id,
+            title: jobData.title,
+            company: jobData.company,
+            matchPercentage: jobData.matchPercentage ?? skillMatch.percentage,
+          }}
           onClose={() => setShowApplicationModal(false)}
           onSuccess={() => {
             setShowApplicationModal(false);
-            alert('Application submitted successfully!');
+            alert("Application submitted successfully!");
           }}
         />
       )}

@@ -208,8 +208,7 @@ export async function generateJobSuggestions(
       console.error("AI job suggestion failed:", err);
     }
   }
-
-  // No mock fallback: require external AI to be configured
+  // No provider configured: return empty to indicate no AI suggestions
   return [];
 }
 
@@ -250,6 +249,6 @@ export async function generateTalentSuggestions(
     }
   }
 
-  // No mock fallback: require external AI to be configured
+  // No provider configured: return empty to indicate no AI suggestions
   return [];
 }
