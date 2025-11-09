@@ -3,8 +3,108 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Brain, ShieldCheck, BadgeCheck, Scale } from "lucide-react";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+// Simple extractor: supports comma-separated or free-text descriptions
+const STOPWORDS = new Set([
+  "i",
+  "am",
+  "a",
+  "an",
+  "and",
+  "with",
+  "of",
+  "for",
+  "to",
+  "in",
+  "on",
+  "the",
+  "my",
+  "as",
+  "have",
+  "has",
+  "experienced",
+  "experience",
+  "work",
+  "working",
+  "developer",
+  "engineer",
+  "build",
+  "built",
+  "using",
+  "use",
+  "used",
+]);
+
+function extractSkills(input: string): string[] {
+  const text = (input || "").toLowerCase();
+  // Prefer comma-separated if given
+  const commaParts = text
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (commaParts.length > 1) {
+    return Array.from(new Set(commaParts));
+  }
+
+  // Otherwise parse free text
+  const tokens = text
+    .split(/[^a-z0-9+#.]/i)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const filtered = tokens.filter((t) => t.length > 2 && !STOPWORDS.has(t));
+  return Array.from(new Set(filtered));
+}
 
 export default function Home() {
+  const router = useRouter();
+  const [openCandidate, setOpenCandidate] = useState(false);
+  const [openRecruiter, setOpenRecruiter] = useState(false);
+  const [candidateSkills, setCandidateSkills] = useState("");
+  const [recruiterReqs, setRecruiterReqs] = useState("");
+
+  const submitCandidate = async () => {
+    const skills = extractSkills(candidateSkills);
+    if (!skills.length) return;
+    try {
+      const res = await fetch("/api/jobs/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ skills }),
+      });
+      const data = await res.json();
+      localStorage.setItem("jobsSuggestions", JSON.stringify(data.jobs || []));
+      setOpenCandidate(false);
+      router.push("/dashboard");
+    } catch (e) {
+      // noop
+    }
+  };
+
+  const submitRecruiter = async () => {
+    const requirements = recruiterReqs
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (!requirements.length) return;
+    try {
+      const res = await fetch("/api/talents/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requirements }),
+      });
+      const data = await res.json();
+      localStorage.setItem("talentSuggestions", JSON.stringify(data.talents || []));
+      setOpenRecruiter(false);
+      router.push("/recruiter");
+    } catch (e) {
+      // noop
+    }
+  };
   return (
     <div className="min-h-screen bg-white text-zinc-900 dark:bg-black dark:text-zinc-100">
       {/* Header */}
@@ -33,12 +133,12 @@ export default function Home() {
               Match talent and roles using verified skills, not keywords. AI-powered matching, bias-free screening, and trustworthy profiles.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="#candidate" className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500">
+              <Button variant="primary" onClick={() => setOpenCandidate(true)}>
                 Find Your Dream Job
-              </a>
-              <a href="#employer" className="inline-flex items-center justify-center rounded-full border border-zinc-300 px-5 py-3 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-900">
+              </Button>
+              <Button variant="secondary" onClick={() => setOpenRecruiter(true)}>
                 Hire Talent
-              </a>
+              </Button>
             </div>
           </div>
           <div className="relative">
@@ -101,6 +201,21 @@ export default function Home() {
           </nav>
         </div>
       </footer>
+      {/* Forms */}
+      <CandidateModal
+        open={openCandidate}
+        onClose={() => setOpenCandidate(false)}
+        value={candidateSkills}
+        setValue={setCandidateSkills}
+        onSubmit={submitCandidate}
+      />
+      <RecruiterModal
+        open={openRecruiter}
+        onClose={() => setOpenRecruiter(false)}
+        value={recruiterReqs}
+        setValue={setRecruiterReqs}
+        onSubmit={submitRecruiter}
+      />
     </div>
   );
 }
@@ -120,5 +235,40 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
       <h3 className="mt-4 text-base font-semibold">{title}</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-400">{description}</p>
     </div>
+  );
+}
+
+// Modals
+function CandidateModal({ open, onClose, value, setValue, onSubmit }: { open: boolean; onClose: () => void; value: string; setValue: (v: string) => void; onSubmit: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Describe your skills" size="lg" footer={
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={onSubmit}>Get Suggestions</Button>
+      </div>
+    }>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Skill description (free text or comma-separated)</label>
+        <Input placeholder="e.g. I build React apps with TypeScript and Tailwind" value={value} onChange={(e) => setValue(e.target.value)} />
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">We’ll extract skills and match jobs for you.</p>
+      </div>
+    </Modal>
+  );
+}
+
+function RecruiterModal({ open, onClose, value, setValue, onSubmit }: { open: boolean; onClose: () => void; value: string; setValue: (v: string) => void; onSubmit: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Describe the role requirements" size="lg" footer={
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button variant="primary" onClick={onSubmit}>Find Talents</Button>
+      </div>
+    }>
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Requirements (comma-separated)</label>
+        <Input placeholder="e.g. node, express, postgresql" value={value} onChange={(e) => setValue(e.target.value)} />
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">We’ll generate matching candidates for your role.</p>
+      </div>
+    </Modal>
   );
 }

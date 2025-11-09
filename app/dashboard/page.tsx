@@ -3,48 +3,11 @@
 import Link from "next/link";
 import { Home, Briefcase, User, Settings, Bell, Search } from "lucide-react";
 import JobCard from "@/components/JobCard";
+import { useEffect, useState } from "react";
 import ProfileCard from "@/components/ProfileCard";
 import SkillGapCard from "@/components/SkillGapCard";
 
-// Mock data
-const mockJobs = [
-  {
-    id: 1,
-    title: "Senior Frontend Developer",
-    company: "TechCorp Inc.",
-    matchPercentage: 92,
-    skills: ["React", "TypeScript", "Node.js", "GraphQL"],
-    salary: "$120k - $150k",
-    location: "San Francisco, CA (Remote)",
-  },
-  {
-    id: 2,
-    title: "Full Stack Engineer",
-    company: "StartupXYZ",
-    matchPercentage: 87,
-    skills: ["React", "Node.js", "PostgreSQL", "AWS"],
-    salary: "$100k - $130k",
-    location: "New York, NY (Hybrid)",
-  },
-  {
-    id: 3,
-    title: "React Developer",
-    company: "Digital Agency",
-    matchPercentage: 85,
-    skills: ["React", "TypeScript", "Tailwind CSS", "Next.js"],
-    salary: "$90k - $115k",
-    location: "Austin, TX (Remote)",
-  },
-  {
-    id: 4,
-    title: "Software Engineer II",
-    company: "Enterprise Solutions",
-    matchPercentage: 78,
-    skills: ["React", "Node.js", "TypeScript", "Docker"],
-    salary: "$110k - $140k",
-    location: "Seattle, WA",
-  },
-];
+// Mock job list removed: dashboard now shows only AI suggestions
 
 const mockProfile = {
   name: "Alex Johnson",
@@ -61,7 +24,20 @@ const mockSkillGaps = [
   { skill: "GraphQL", status: "good" as const },
 ];
 
+type SuggestedJob = { id: string; title: string; skills: string[]; match?: number; description?: string };
+
 export default function DashboardPage() {
+  const [suggested, setSuggested] = useState<SuggestedJob[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("jobsSuggestions");
+      if (raw) {
+        const arr = JSON.parse(raw) as SuggestedJob[];
+        setSuggested(Array.isArray(arr) ? arr : []);
+      }
+    } catch {}
+  }, []);
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-100 pb-20 lg:pb-0">
       {/* Header */}
@@ -151,16 +127,21 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-3 sm:space-y-4">
-              {mockJobs.map((job) => (
+              {!suggested.length && (
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+                  No AI job suggestions yet. Go to the home page, describe your skills, and submit to see personalized matches here.
+                </div>
+              )}
+              {suggested.map((job: any) => (
                 <JobCard
                   key={job.id}
                   title={job.title}
-                  company={job.company}
-                  matchPercentage={job.matchPercentage}
+                  company={job.company || "AI Suggested Company"}
+                  matchPercentage={job.matchPercentage ?? job.match ?? 0}
                   skills={job.skills}
-                  salary={job.salary}
-                  location={job.location}
-                  onApply={() => alert(`Applying to ${job.title} at ${job.company}`)}
+                  salary={job.salary || "—"}
+                  location={job.location || "Remote"}
+                  onApply={() => alert(`Applying to ${job.title} at ${job.company || "AI Suggested Company"}`)}
                 />
               ))}
             </div>

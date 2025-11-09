@@ -7,13 +7,25 @@ import Card, { CardHeader, CardTitle, CardBody } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { useToast } from "@/components/ui/ToastProvider";
+type Talent = { id: string; name: string; skills: string[]; match?: number };
 
 export default function RecruiterDashboard() {
   const { addToast } = useToast();
+  const [talents, setTalents] = useState<Talent[]>([]);
 
   const handleCreateJob = () => {
     addToast({ title: "Job draft created", description: "Start filling out job details.", variant: "success" });
   };
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("talentSuggestions");
+      if (raw) {
+        const arr = JSON.parse(raw) as Talent[];
+        setTalents(Array.isArray(arr) ? arr : []);
+      }
+    } catch {}
+  }, []);
 
   return (
     <main className="page-transition min-h-screen bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-100">
@@ -107,6 +119,36 @@ export default function RecruiterDashboard() {
                 </Tabs>
               </CardBody>
             </Card>
+
+            {/* AI Suggested Candidates */}
+            {talents.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>AI Suggested Candidates</CardTitle>
+                </CardHeader>
+                <CardBody>
+                  <ul className="space-y-3">
+                    {talents.map((t) => (
+                      <li key={t.id} className="flex items-start justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+                        <div>
+                          <div className="text-sm font-semibold">{t.name}</div>
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {t.skills.map((s, idx) => (
+                              <span key={idx} className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                          {Math.round(t.match || 0)}% match
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardBody>
+              </Card>
+            )}
           </div>
 
           {/* Recent Activity */}
